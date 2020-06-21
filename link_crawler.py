@@ -2,7 +2,8 @@ from lxml import html
 import requests
 import time
 from link_model import LinkModel
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
+import threading
 
 
 class LinkCrawler:
@@ -15,26 +16,26 @@ class LinkCrawler:
         self.depthLinks = []
         self.linkList = []
 
-    def startCrawl(self, n):
-        print(f'Starting thread {n}')
-        link = self.get_content_from_link(self.starting_url, n)
+    def startCrawl(self):
+        print("Starting thread: {}".format(threading.current_thread().name)) 
+        link = self.get_content_from_link(self.starting_url)
         self.linkList.append(link)
         self.depthLinks.append(link.links)
         
         while self.currentDepth < self.depth:
             currentLinks = []
             for relatedLink in self.depthLinks[self.currentDepth]:
-                new_link = self.get_content_from_link(relatedLink, n)
+                new_link = self.get_content_from_link(relatedLink)
                 currentLinks.extend(new_link.links)
                 self.linkList.append(new_link)
                 time.sleep(5)
             self.currentDepth += 1
             self.depthLinks.append(currentLinks)
-        print(f'Ending thread {n}')
+        print("Ending thread: {}".format(threading.current_thread().name))
         return
 
-    def get_content_from_link(self, link, n):
-        print(f'Thread {n}: scraping {link}')
+    def get_content_from_link(self, link):
+        print("Thread {}: scraping {}".format(threading.current_thread().name, link)) 
         start_page = requests.get(link)
         document = html.fromstring(start_page.text)
         title = document.xpath('//title/text()')[0]
@@ -47,10 +48,15 @@ class LinkCrawler:
 
 
 def main():
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        crawler = LinkCrawler("http://localhost:8000/spiders/web_page.html", 2, 3)
-        executor.submit(crawler.startCrawl(1))
-        executor.submit(crawler.startCrawl(2))
+    crawler = LinkCrawler("http://localhost:8000/spiders/web_page.html", 2, 3)
+    t1 = threading.Thread(target=crawler.startCrawl, name='1') 
+    t2 = threading.Thread(target=crawler.startCrawl, name='2')   
+  
+    t1.start() 
+    t2.start() 
+  
+    t1.join() 
+    t2.join()
 
     for link in crawler.linkList:
         print(link)

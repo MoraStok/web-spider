@@ -6,4 +6,4 @@ class LinkModel:
         self.links = links
 
     def __str__(self):
-        return "\nTitle: " + self.title + "\nURL: " + self.url
+        return "\nTitle: " + self.title + "\nURL: " + self.url + "\nLista de links interna: " + ", ".join(self.links)

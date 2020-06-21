@@ -16,40 +16,41 @@ class LinkCrawler:
         self.linkList = []
 
     def startCrawl(self, n):
-        link = self.get_content_from_link(self.starting_url)
-        print(f'Thread {n}: scraping {self.starting_url}')
+        print(f'Starting thread {n}')
+        link = self.get_content_from_link(self.starting_url, n)
         self.linkList.append(link)
         self.depthLinks.append(link.links)
         
         while self.currentDepth < self.depth:
             currentLinks = []
             for relatedLink in self.depthLinks[self.currentDepth]:
-                new_link = self.get_content_from_link(relatedLink)
-                print(f'Thread {n}: scraping inside {relatedLink}')
+                new_link = self.get_content_from_link(relatedLink, n)
                 currentLinks.extend(new_link.links)
                 self.linkList.append(new_link)
                 time.sleep(5)
             self.currentDepth += 1
             self.depthLinks.append(currentLinks)
+        print(f'Ending thread {n}')
         return
 
-    def get_content_from_link(self, link):
+    def get_content_from_link(self, link, n):
+        print(f'Thread {n}: scraping {link}')
         start_page = requests.get(link)
         document = html.fromstring(start_page.text)
         title = document.xpath('//title/text()')[0]
         links = document.xpath('//a/@href')[:self.breadth]
         new_links = []
         for l in links:
-            new_links.append("http://localhost:8000/" + l)
+            new_links.append("http://localhost:8000/spiders/" + l)
         link_model = LinkModel(title, link, new_links)
         return link_model
 
 
 def main():
     with ThreadPoolExecutor(max_workers=3) as executor:
-        crawler = LinkCrawler("http://localhost:8000/web_page.html", 2, 2)
-        thread1 = executor.submit(crawler.startCrawl(1))
-        thread2 = executor.submit(crawler.startCrawl(2))
+        crawler = LinkCrawler("http://localhost:8000/spiders/web_page.html", 2, 3)
+        executor.submit(crawler.startCrawl(1))
+        executor.submit(crawler.startCrawl(2))
 
     for link in crawler.linkList:
         print(link)

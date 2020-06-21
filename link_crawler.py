@@ -2,6 +2,7 @@ from lxml import html
 import requests
 import time
 from link_model import LinkModel
+from concurrent.futures import ThreadPoolExecutor
 
 
 class LinkCrawler:
@@ -14,14 +15,17 @@ class LinkCrawler:
         self.depthLinks = []
         self.linkList = []
 
-    def startCrawl(self):
+    def startCrawl(self, n):
         link = self.get_content_from_link(self.starting_url)
+        print(f'Thread {n}: scraping {self.starting_url}')
         self.linkList.append(link)
         self.depthLinks.append(link.links)
+        
         while self.currentDepth < self.depth:
             currentLinks = []
             for relatedLink in self.depthLinks[self.currentDepth]:
                 new_link = self.get_content_from_link(relatedLink)
+                print(f'Thread {n}: scraping inside {relatedLink}')
                 currentLinks.extend(new_link.links)
                 self.linkList.append(new_link)
                 time.sleep(5)
@@ -33,17 +37,23 @@ class LinkCrawler:
         start_page = requests.get(link)
         document = html.fromstring(start_page.text)
         title = document.xpath('//title/text()')[0]
-        text = document.xpath('//div[@id = "leftmenuinnerinner"]//a/text()')[0]
-        links = document.xpath('//div[@id = "leftmenuinnerinner"]//a/@href')[:self.breadth]
+        links = document.xpath('//a/@href')[:self.breadth]
         new_links = []
         for l in links:
-            new_links.append("https://www.w3schools.com/html/" + l)
-        link_model = LinkModel(title, text, link, new_links)
+            new_links.append("http://localhost:8000/" + l)
+        link_model = LinkModel(title, link, new_links)
         return link_model
 
 
-crawler = LinkCrawler("https://www.w3schools.com/html/default.asp", 2, 2)
-crawler.startCrawl()
+def main():
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        crawler = LinkCrawler("http://localhost:8000/web_page.html", 2, 2)
+        thread1 = executor.submit(crawler.startCrawl(1))
+        thread2 = executor.submit(crawler.startCrawl(2))
 
-for link in crawler.linkList:
-    print(link)
+    for link in crawler.linkList:
+        print(link)
+
+
+if __name__ == '__main__':
+    main()
